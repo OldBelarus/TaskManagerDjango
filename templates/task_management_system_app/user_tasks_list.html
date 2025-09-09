@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Если передаёте переменную category, можно выводить её имя, иначе просто Tasks -->
+    <title>{% if category %}{{ category.name }} Tasks{% else %}Tasks{% endif %}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h2 class="text-center">
+        {% if category %}{{ category.name }} Tasks{% else %}Tasks{% endif %}
+      </h2>
+      <br />
+      <div class="mb-3">
+        <a href="{% url 'logout' %}" class="btn btn-danger ml-2">Logout</a>
+      </div>
+      <table id="taskTable" class="table">
+        <thead>
+          <tr>
+            <th>Task name</th>
+            <th>Start Date</th>
+            <th>Time Left</th>
+            <th>
+              Priority
+              <button class="btn btn-link" onclick="sortByPriority()">&#x25B2;</button>
+            </th>
+            <th>Completed</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+            <tr>
+              <td>{{ task.name }}</td>
+              <td>{{ task.start_date }}</td>
+              <td>
+                <div id="countdown_{{ task.id }}" class="countdown-timer"></div>
+              </td>
+              <td>{{ task.priority }}</td>
+              <td>
+                <!-- Форма для смены состояния задачи -->
+                <form method="post" action="{% url 'toggle_task' task.id %}">
+                  {% csrf_token %}
+                  <input type="checkbox" name="completed" onchange="this.form.submit()"
+                         {% if task.completed %}checked{% endif %}>
+                </form>
+              </td>
+              <td>
+                <button type="button" class="btn btn-info btn-sm" data-toggle="modal"
+                        data-target="#taskModal_{{ task.id }}">
+                  Details
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Модальные окна для детальной информации о задачах -->
+    {% for task in tasks %}
+      <div class="modal fade" id="taskModal_{{ task.id }}" tabindex="-1" role="dialog"
+           aria-labelledby="taskModalLabel_{{ task.id }}" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="taskModalLabel_{{ task.id }}">{{ task.name }}</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p><strong>Name:</strong> {{ task.name }}</p>
+              <p><strong>Category:</strong> {{ task.category.name }}</p>
+              <p><strong>Assigned to:</strong> {{ task.assigned_to.username }}</p>
+              <p><strong>Start Date:</strong> {{ task.start_date }}</p>
+              <p><strong>End Date:</strong> {{ task.end_date }}</p>
+              <p><strong>Priority:</strong> {{ task.priority }}</p>
+              <p><strong>Description:</strong> {{ task.description }}</p>
+              <p><strong>Location:</strong> {{ task.location }}</p>
+              <p><strong>Organizer:</strong> {{ task.organizer }}</p>
+              <p><strong>Completed:</strong>
+                {% if task.completed %}Yes{% else %}No{% endif %}
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Скрипты для обновления countdown таймера и сортировки -->
+    <script>
+      function sortByPriority() {
+        var table = document.getElementById("taskTable");
+        var switching = true;
+        while (switching) {
+          switching = false;
+          var rows = table.getElementsByTagName("tr");
+          for (var i = 1; i < (rows.length - 1); i++) {
+            var shouldSwitch = false;
+            var x = rows[i].getElementsByTagName("td")[3];
+            var y = rows[i + 1].getElementsByTagName("td")[3];
+            if (parseInt(x.innerHTML) < parseInt(y.innerHTML)) {
+              shouldSwitch = true;
+              break;
+            }
+          }
+          if (shouldSwitch) {
+            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+            switching = true;
+          }
+        }
+      }
+
+      function updateCountdownTimers() {
+        {% for task in tasks %}
+          var startDate = new Date('{{ task.start_date|date:"Y/m/d H:i:s" }}');
+          var now = new Date();
+          var timeDiff = startDate - now;
+          if (timeDiff > 0) {
+            var days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            var hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            var minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+            document.getElementById('countdown_{{ task.id }}').innerText = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+          } else {
+            document.getElementById('countdown_{{ task.id }}').innerText = "Task has started";
+          }
+        {% endfor %}
+      }
+      setInterval(updateCountdownTimers, 1000);
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>
